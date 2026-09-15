@@ -143,11 +143,15 @@ class OrderFlowEngine:
         elif (net_delta < 0 and cvd_slope < 0 and dom_ratio < 0.95) or absorption_state == "BEARISH_ABSORPTION":
             of_signal = "BEARISH"
             
+        dominant_wall = "BUYER" if dom_ratio > 1.0 else ("SELLER" if dom_ratio < 1.0 else "BALANCED")
+        delta_polarity = "POSITIVE" if net_delta > 0 else ("NEGATIVE" if net_delta < 0 else "NEUTRAL")
+
         return {
             'symbol': self.symbol,
             'current_price': current_p,
             'net_delta': net_delta,
             'delta_pct': delta_pct,
+            'delta_polarity': delta_polarity,
             'agg_buy_vol': agg_buy_vol,
             'agg_sell_vol': agg_sell_vol,
             'total_vol': total_vol,
@@ -156,6 +160,8 @@ class OrderFlowEngine:
             'absorption_desc': absorption_desc,
             'poc_price': poc_price,
             'dom_ratio': dom_ratio,
+            'dom_imbalance': dom_ratio,
+            'dominant_wall': dominant_wall,
             'order_flow_signal': of_signal,
             'timestamp': datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')
         }

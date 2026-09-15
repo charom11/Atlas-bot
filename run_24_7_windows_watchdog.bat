@@ -13,11 +13,7 @@ COLOR 0A
 echo =========================================================================
 echo  ⚡ STARTING WEATHER-ENSEMBLE AI 24/7 LIVE TRADING SUITE
 echo =========================================================================
-<<<<<<< HEAD
-echo  • Mode:        REAL BINANCE FUTURES (75x Leverage / 3%% Dynamic Margin)
-=======
 echo  • Mode:        REAL BINANCE FUTURES (50x Leverage / 3%% Dynamic Margin)
->>>>>>> 5c8d972f782aec802467aebdf173bc1654c48c11
 echo  • Universe:    BTC, ETH, SOL, LINK, AVAX, XRP, ADA, APT, XAU (Gold), XAG (Silver), PAXG
 echo  • Telegram C2: ACTIVE (Control directly from your phone)
 echo  • Watchdog:    SELF-HEALING AUTO-RESTART ENABLED
@@ -26,21 +22,14 @@ echo.
 
 cd /d "%~dp0"
 
-<<<<<<< HEAD
 :: BUG-10 Fix: Prevent Windows from sleeping while on AC power during 24/7 trading
 powercfg /change standby-timeout-ac 0 >nul 2>&1
 
-=======
->>>>>>> 5c8d972f782aec802467aebdf173bc1654c48c11
 :WATCHDOG_LOOP
 echo [%date% %time%] [WATCHDOG] Booting Weather-Ensemble AI Live Daemon...
 
 :: Run the Live Bot with auto-healing
-<<<<<<< HEAD
-"%~dp0.venv\Scripts\python.exe" -u main.py --trade-live --sizing-mode margin --margin-pct 0.03 --leverage 75 --threshold 30 --timeframe 15m --max-positions 5 --directional-cap 5
-=======
-"%~dp0.venv\Scripts\python.exe" -u main.py --trade-live --sizing-mode margin --margin-pct 0.03 --leverage 50 --threshold 30 --timeframe 15m --max-positions 5
->>>>>>> 5c8d972f782aec802467aebdf173bc1654c48c11
+"%~dp0.venv\Scripts\python.exe" -u main.py --trade-live --sizing-mode margin --margin-pct 0.03 --leverage 50 --threshold 30 --timeframe 15m --max-positions 5 --directional-cap 4
 
 echo.
 echo ⚠️ [%date% %time%] [WATCHDOG WARNING] Bot process exited or disconnected!

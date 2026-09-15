@@ -309,6 +309,7 @@ class WebDashboardHandler(BaseHTTPRequestHandler):
                 log_file.write(f"\n--- BOT STARTED: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')} ---\n")
                 log_file.flush()
                 BOT_PROCESS = subprocess.Popen(cmd, cwd=PROJECT_DIR, stdout=log_file, stderr=subprocess.STDOUT)
+                log_file.close()
                 res = {'status': 'success', 'message': f'Bot started (PID: {BOT_PROCESS.pid})', 'running': True, 'pid': BOT_PROCESS.pid}
             except Exception as e:
                 res = {'status': 'error', 'message': f'Failed to start bot: {str(e)}', 'running': False}

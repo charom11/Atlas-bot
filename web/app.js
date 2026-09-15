@@ -68,6 +68,7 @@ const state = {
   simulationSpeed: 400,   // ms per bar update in simulation
   currentFilterCategory: 'all',
   currentSymbol: 'XRPUSDT',
+  activeSymbol: 'XRPUSDT',
   walletBalance: 14.20,
   leverage: 50,
   sizingMode: 'margin',   // 'margin' mode for 3% margin allocation
@@ -1309,7 +1310,7 @@ function playOrderFilledSound() {
 // --------------------------------------------------------------------------
 async function fetchOrderFlow() {
   try {
-    const sym = state.activeSymbol || 'XRPUSDT';
+    const sym = state.activeSymbol || state.currentSymbol || 'XRPUSDT';
     const res = await fetch(`/api/orderflow?symbol=${sym}`);
     if (res.ok) {
       const json = await res.json();
@@ -1322,23 +1323,30 @@ async function fetchOrderFlow() {
         const domEl = document.getElementById('ofDomRatio');
 
         if (badge) {
-          badge.textContent = d.absorption_state.replace('_', ' ');
+          const absState = d.absorption_state || 'NONE';
+          badge.textContent = absState.replace('_', ' ');
           badge.className = 'of-badge';
-          if (d.absorption_state.includes('BULLISH')) badge.classList.add('bullish-absorption');
-          if (d.absorption_state.includes('BEARISH')) badge.classList.add('bearish-absorption');
+          if (absState.includes('BULLISH')) badge.classList.add('bullish-absorption');
+          if (absState.includes('BEARISH')) badge.classList.add('bearish-absorption');
         }
+        const deltaPct = typeof d.delta_pct === 'number' ? d.delta_pct : 0;
+        const polarity = d.delta_polarity || (deltaPct >= 0 ? 'POSITIVE' : 'NEGATIVE');
         if (deltaText) {
-          const sign = d.delta_pct >= 0 ? '+' : '';
-          deltaText.textContent = `${sign}${d.delta_pct.toFixed(1)}% (${d.delta_polarity} Delta)`;
-          deltaText.style.color = d.delta_pct >= 0 ? 'var(--color-bull)' : 'var(--color-bear)';
+          const sign = deltaPct >= 0 ? '+' : '';
+          deltaText.textContent = `${sign}${deltaPct.toFixed(1)}% (${polarity} Delta)`;
+          deltaText.style.color = deltaPct >= 0 ? 'var(--color-bull)' : 'var(--color-bear)';
         }
         if (fillBar) {
-          const w = Math.min(100, Math.max(10, 50 + d.delta_pct * 1.5));
+          const w = Math.min(100, Math.max(10, 50 + deltaPct * 1.5));
           fillBar.style.width = `${w}%`;
-          fillBar.style.background = d.delta_pct >= 0 ? 'var(--color-bull)' : 'var(--color-bear)';
+          fillBar.style.background = deltaPct >= 0 ? 'var(--color-bull)' : 'var(--color-bear)';
         }
-        if (pocEl) pocEl.textContent = `$${d.poc_price.toFixed(4)}`;
-        if (domEl) domEl.textContent = `${d.dom_imbalance.toFixed(2)}x (${d.dominant_wall} Wall)`;
+        if (pocEl && typeof d.poc_price === 'number') pocEl.textContent = `$${d.poc_price.toFixed(4)}`;
+        if (domEl) {
+          const domRatio = typeof d.dom_imbalance === 'number' ? d.dom_imbalance : (typeof d.dom_ratio === 'number' ? d.dom_ratio : 1.0);
+          const wall = d.dominant_wall || (domRatio >= 1.0 ? 'BUYER' : 'SELLER');
+          domEl.textContent = `${domRatio.toFixed(2)}x (${wall} Wall)`;
+        }
       }
     }
   } catch (e) {}
@@ -1521,7 +1529,7 @@ if (!tapeVelocityTimer) {
 }
 
 async function fetchDivergence() {
-  const sym = state.activeSymbol || 'XRPUSDT';
+  const sym = state.activeSymbol || state.currentSymbol || 'XRPUSDT';
   try {
     const res = await fetch(`/api/divergence?symbol=${sym}`);
     if (res.ok) {
@@ -1531,11 +1539,12 @@ async function fetchDivergence() {
         const cciEl = document.getElementById('divCciVal');
         const badge = document.getElementById('divergenceStateBadge');
 
-        if (rsiEl) rsiEl.textContent = d.rsi_14.toFixed(1);
-        if (cciEl) cciEl.textContent = (d.cci_20 >= 0 ? '+' : '') + d.cci_20.toFixed(1);
+        if (rsiEl && typeof d.rsi_14 === 'number') rsiEl.textContent = d.rsi_14.toFixed(1);
+        if (cciEl && typeof d.cci_20 === 'number') cciEl.textContent = (d.cci_20 >= 0 ? '+' : '') + d.cci_20.toFixed(1);
 
         if (badge) {
-          badge.textContent = d.divergence_state.replace('_', ' ');
+          const stateStr = d.divergence_state || 'NO_DIVERGENCE';
+          badge.textContent = stateStr.replace(/_/g, ' ');
           if (d.bull_div) {
             badge.style.background = 'rgba(0, 245, 160, 0.15)';
             badge.style.color = 'var(--color-bull)';
@@ -1604,6 +1613,7 @@ document.addEventListener('DOMContentLoaded', () => {
       btn.classList.add('active');
       const sym = btn.getAttribute('data-symbol');
       state.activeSymbol = sym;
+      state.currentSymbol = sym;
       document.getElementById('chartAssetTitle').textContent = `${sym} 5M Candlestick & Spaghetti Forecast`;
       initBinanceTradeTapeWebSocket(sym);
       fetchOrderFlow();
