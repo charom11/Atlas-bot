@@ -1,0 +1,112 @@
+{
+  "virtual_wallet": 60.0,
+  "starting_capital": 100.0,
+  "realized_pnl": 0.0,
+  "wins": 0,
+  "losses": 0,
+  "open_positions": [
+    {
+      "event": "What price will Bitcoin hit in August?",
+      "question": "Will Bitcoin dip to $75,000 in August?",
+      "outcome": "Yes",
+      "token_id": "52967959241395817429602158891216394752909947915176073432962965400546600207163",
+      "entry_price": 0.2,
+      "current_price": 0.22,
+      "cost": 5.0,
+      "shares": 25.0,
+      "payout_if_yes": 25.0,
+      "opened_at": "2026-08-29 00:35:09 UTC"
+    },
+    {
+      "event": "What price will Bitcoin hit in August?",
+      "question": "Will Bitcoin reach $80,000 in August?",
+      "outcome": "Yes",
+      "token_id": "56164455570252326223230108705520239369498485700090339884257384687834000075314",
+      "entry_price": 0.32,
+      "current_price": 0.285,
+      "cost": 5.0,
+      "shares": 15.625,
+      "payout_if_yes": 15.625,
+      "opened_at": "2026-08-29 00:35:09 UTC"
+    },
+    {
+      "event": "What price will Bitcoin hit August 24-30?",
+      "question": "Will Bitcoin dip to $76,000 August 24-30?",
+      "outcome": "Yes",
+      "token_id": "71886568353888577087165059540316973454354766531902519043820274198190538253303",
+      "entry_price": 0.225,
+      "current_price": 0.24,
+      "cost": 5.0,
+      "shares": 22.22222222222222,
+      "payout_if_yes": 22.22222222222222,
+      "opened_at": "2026-08-29 00:35:09 UTC"
+    },
+    {
+      "event": "What price will Bitcoin hit August 24-30?",
+      "question": "Will Bitcoin reach $80,000 August 24-30?",
+      "outcome": "Yes",
+      "token_id": "17144754336354855693397590955730851597442806523812305340550763360969697112933",
+      "entry_price": 0.255,
+      "current_price": 0.215,
+      "cost": 5.0,
+      "shares": 19.607843137254903,
+      "payout_if_yes": 19.607843137254903,
+      "opened_at": "2026-08-29 00:35:09 UTC"
+    },
+    {
+      "event": "What price will Bitcoin hit in 2026?",
+      "question": "Will Bitcoin reach $95,000 by December 31, 2026?",
+      "outcome": "Yes",
+      "token_id": "37011650970792437921328530439273985710481032638212715110420998355785945483754",
+      "entry_price": 0.345,
+      "current_price": 0.345,
+      "cost": 5.0,
+      "shares": 14.492753623188406,
+      "payout_if_yes": 14.492753623188406,
+      "opened_at": "2026-08-29 00:35:09 UTC"
+    },
+    {
+      "category": "\ud83d\udcc8 CRYPTO",
+      "event": "What price will Bitcoin hit in August?",
+      "question": "Will Bitcoin reach $82,500 in August?",
+      "outcome": "Yes",
+      "token_id": "58559007481908595732343519640998477965598707756438174409311033318259996889965",
+      "entry_price": 0.0695,
+      "current_price": 0.0655,
+      "cost": 5.0,
+      "shares": 71.94244604316546,
+      "payout_if_yes": 71.94244604316546,
+      "payout_multiplier": 14.388489208633093,
+      "opened_at": "2026-08-29 00:43:01 UTC"
+    },
+    {
+      "category": "\ud83d\udcc8 CRYPTO",
+      "event": "What price will Bitcoin hit in August?",
+      "question": "Will Bitcoin dip to $72,500 in August?",
+      "outcome": "Yes",
+      "token_id": "79697021471149273297867285272226524165531438782155382582295930999430106675621",
+      "entry_price": 0.0535,
+      "current_price": 0.0465,
+      "cost": 5.0,
+      "shares": 93.45794392523365,
+      "payout_if_yes": 93.45794392523365,
+      "payout_multiplier": 18.69158878504673,
+      "opened_at": "2026-08-29 00:43:01 UTC"
+    },
+    {
+      "category": "\ud83d\udcc8 CRYPTO",
+      "event": "What price will Ethereum hit in August?",
+      "question": "Will Ethereum reach $2,600 in August?",
+      "outcome": "Yes",
+      "token_id": "87205176363338814709708203899309446917881667334315183367756187844453520430452",
+      "entry_price": 0.1135,
+      "current_price": 0.1045,
+      "cost": 5.0,
+      "shares": 44.052863436123346,
+      "payout_if_yes": 44.052863436123346,
+      "payout_multiplier": 8.810572687224669,
+      "opened_at": "2026-08-29 00:43:01 UTC"
+    }
+  ],
+  "closed_trades": []
+}
