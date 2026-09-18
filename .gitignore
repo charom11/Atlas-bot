@@ -35,3 +35,4 @@ core_backup/
 atlas-gic-temp/
 To Qwen/
 backtests/historical_data_cache/
+backtests/reports/

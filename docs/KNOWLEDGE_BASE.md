@@ -128,6 +128,42 @@ Implemented all approved recommendations:
 
 ---
 
+### Phase 5: Canonical Institutional Audit v2 & Remediation Plan (`4be714e` & `99731b4`)
+Two research and remediation artifacts were integrated upstream on `origin/main`:
+
+1. **Canonical Institutional Audit Engine v2 ([`backtests/canonical_audit_v2.py`](file:///d:/Bot2/backtests/canonical_audit_v2.py) — Commit `4be714e`):**
+   - Implements strict, side-effect-free, chronological backtesting without lookahead bias.
+   - Features:
+     - Risk-based sizing (`risk_per_trade=0.005` = 0.5% equity risk per trade).
+     - Strict 5x leverage cap (`leverage_cap=5.0`).
+     - $5.00 minimum notional gate (`min_notional=5.0`).
+     - Portfolio-level simultaneous-position cap (`max_positions=5`).
+     - Real cached funding rates only (never synthetic).
+     - Execution fee (0.045%) and slippage (1.5 bps) models.
+     - **Dual Risk Circuit Breaker:** Permanent HALT triggered if max drawdown reaches 10% OR consecutive loss streak hits 5 trades.
+   - **Empirical Execution Result (4-Year Binance Futures Dataset: 2022–2026):**
+     - Initial Equity: $1,000.00
+     - Trades Executed: 20
+     - Consecutive Losses at Halt: 5
+     - Status: Safely **HALTED** on `max_consecutive_losses`
+     - Final Equity: **$977.51** (Drawdown strictly contained to **-2.25%**, max drawdown 3.59%)
+     - *Key Takeaway:* Demonstrates that strict risk limits and circuit breakers successfully protect capital from the catastrophic drawdowns seen under unmanaged leverage.
+
+2. **Institutional Backtest Remediation Plan ([`backtests/ATLAS_IMPROVEMENT_PLAN.md`](file:///d:/Bot2/backtests/ATLAS_IMPROVEMENT_PLAN.md) — Commit `99731b4`):**
+   - Defines research gates: a strategy change is not accepted merely because win rate improves; net expectancy, profit factor, max drawdown, fee/funding drag, out-of-sample performance, and walk-forward stability must all be validated.
+   - Core 9-step research roadmap:
+     1. Populate and validate real historical Binance funding for every symbol.
+     2. Wire production Atlas signal components only when historical inputs are available.
+     3. Add independent P&L reconciliation against the trade ledger.
+     4. Add walk-forward train/validation/test periods.
+     5. Add ablation tests for MA, Fibonacci, MSS/SMC, divergence, liquidity, funding, and adaptive weighting.
+     6. Add portfolio correlation/exposure limits.
+     7. Add restart-state/reconciliation tests to the live execution engine.
+     8. Add minimum-viable-balance persistent HALTED state to live execution.
+     9. Keep experimental backtest scripts clearly labeled.
+
+---
+
 ## 3. Component-by-Component Reference
 
 ### `main.py` — Core Quant Engine
