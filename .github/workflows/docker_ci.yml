@@ -1,0 +1,43 @@
+name: Atlas Bot Docker CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docker-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  docker-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build test image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: atlas-bot:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Run Python tests in container
+        run: docker run --rm --entrypoint python atlas-bot:ci -m pytest -q
+
+      - name: Compile Python sources in container
+        run: docker run --rm --entrypoint python atlas-bot:ci -m compileall -q .
+
+      - name: Verify image metadata
+        run: docker image inspect atlas-bot:ci >/dev/null
