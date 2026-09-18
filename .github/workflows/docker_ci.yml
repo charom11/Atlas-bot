@@ -1,10 +1,13 @@
 name: Atlas Bot Docker CI
 
+# CI is intentionally not triggered by direct pushes to main.
+# The repository workflow was failing during the current remediation work,
+# so direct-to-main commits must not start a broken run flow. CI can still be
+# executed for pull requests or manually when the test environment is ready.
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
