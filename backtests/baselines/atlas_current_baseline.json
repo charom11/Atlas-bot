@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "status": "research-baseline",
+  "datasets": {},
+  "notes": "Populate only from a verified canonical audit. An empty dataset baseline intentionally performs validation without inventing performance numbers."
+}
