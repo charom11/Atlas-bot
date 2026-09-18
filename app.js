@@ -1408,7 +1408,7 @@ async function fetchLiveConsoleLogs() {
 
 async function fetchPotatoSr() {
   try {
-    const sym = state.activeSymbol || 'XRPUSDT';
+    const sym = state.activeSymbol || state.currentSymbol || 'XRPUSDT';
     const res = await fetch(`/api/potato_sr?symbol=${sym}`);
     if (res.ok) {
       const d = await res.json();

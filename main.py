@@ -98,6 +98,7 @@ class GlobalDataCache:
     - Integrates with MarketStateManager WebSocket stream when available.
     """
     def __init__(self, enable_ws=False):
+        self.lock = threading.Lock()
         self.all_funding = {}
         self.btc_15m_raw = None
         self.last_update = 0
@@ -111,49 +112,50 @@ class GlobalDataCache:
                 self.market_state = None
 
     def update(self, force=False):
-        now = time.time()
-        if not force and (now - self.last_update < 6) and self.all_funding and self.btc_15m_raw:
-            return
+        with self.lock:
+            now = time.time()
+            if not force and (now - self.last_update < 6) and self.all_funding and self.btc_15m_raw:
+                return
 
-        ws_funding_ok = False
-        ws_btc_ok = False
-        if self.market_state is not None:
-            if getattr(self.market_state, 'ws_connected', False) and (now - getattr(self.market_state, 'last_msg_time', 0) < 60):
-                rates = getattr(self.market_state, 'funding_rates', {})
-                if rates:
-                    self.all_funding.update(rates)
-                    ws_funding_ok = True
-                btc_raw = getattr(self.market_state, 'btc_15m_raw', [])
-                if btc_raw and len(btc_raw) >= 30:
-                    self.btc_15m_raw = btc_raw
-                    ws_btc_ok = True
+            ws_funding_ok = False
+            ws_btc_ok = False
+            if self.market_state is not None:
+                if getattr(self.market_state, 'ws_connected', False) and (now - getattr(self.market_state, 'last_msg_time', 0) < 60):
+                    rates = getattr(self.market_state, 'funding_rates', {})
+                    if rates:
+                        self.all_funding.update(rates)
+                        ws_funding_ok = True
+                    btc_raw = getattr(self.market_state, 'btc_15m_raw', [])
+                    if btc_raw and len(btc_raw) >= 30:
+                        self.btc_15m_raw = btc_raw
+                        ws_btc_ok = True
 
-        # 1. Fetch ALL funding rates in 1 single call if WS did not supply
-        if not ws_funding_ok:
-            try:
-                r = requests.get("https://fapi.binance.com/fapi/v1/premiumIndex", timeout=3)
-                if hasattr(r, 'status_code') and r.status_code == 200:
-                    data = r.json() if callable(getattr(r, 'json', None)) else r
-                    if isinstance(data, list):
-                        for item in data:
-                            sym = item.get('symbol')
-                            if sym:
-                                self.all_funding[sym] = float(item.get('lastFundingRate', 0.0))
-            except Exception:
-                pass
+            # 1. Fetch ALL funding rates in 1 single call if WS did not supply
+            if not ws_funding_ok:
+                try:
+                    r = requests.get("https://fapi.binance.com/fapi/v1/premiumIndex", timeout=3)
+                    if hasattr(r, 'status_code') and r.status_code == 200:
+                        data = r.json() if callable(getattr(r, 'json', None)) else r
+                        if isinstance(data, list):
+                            for item in data:
+                                sym = item.get('symbol')
+                                if sym:
+                                    self.all_funding[sym] = float(item.get('lastFundingRate', 0.0))
+                except Exception as e:
+                    print(f"[GLOBAL CACHE WARN] Failed to fetch funding rates: {e}", flush=True)
 
-        # 2. Fetch BTC 15m klines ONCE per cycle if WS did not supply
-        if not ws_btc_ok:
-            try:
-                r = requests.get("https://fapi.binance.com/fapi/v1/klines?symbol=BTCUSDT&interval=15m&limit=45", timeout=3)
-                if hasattr(r, 'status_code') and r.status_code == 200:
-                    raw = r.json() if callable(getattr(r, 'json', None)) else r
-                    if isinstance(raw, list) and len(raw) >= 30:
-                        self.btc_15m_raw = raw
-            except Exception:
-                pass
+            # 2. Fetch BTC 15m klines ONCE per cycle if WS did not supply
+            if not ws_btc_ok:
+                try:
+                    r = requests.get("https://fapi.binance.com/fapi/v1/klines?symbol=BTCUSDT&interval=15m&limit=45", timeout=3)
+                    if hasattr(r, 'status_code') and r.status_code == 200:
+                        raw = r.json() if callable(getattr(r, 'json', None)) else r
+                        if isinstance(raw, list) and len(raw) >= 30:
+                            self.btc_15m_raw = raw
+                except Exception as e:
+                    print(f"[GLOBAL CACHE WARN] Failed to fetch BTC 15m klines: {e}", flush=True)
 
-        self.last_update = now
+            self.last_update = now
 
 GLOBAL_CACHE = GlobalDataCache()
 
@@ -433,6 +435,7 @@ def calc_dynamic_atr_margin(symbol, atr, price, base_margin_pct=0.03):
     return base_margin_pct
 
 _MTF_CACHE = {'timestamp': 0, 'data': []}
+_MTF_CACHE_LOCK = threading.Lock()
 
 def _fetch_single_sym_mtf(sym):
     try:
@@ -470,10 +473,11 @@ def get_mtf_heatmap_data():
     """
     Calculates 5m, 15m, 1h, 4h trends across all 9 assets in parallel with 10s caching.
     """
-    global _MTF_CACHE
+    global _MTF_CACHE, _MTF_CACHE_LOCK
     now = time.time()
-    if now - _MTF_CACHE['timestamp'] < 10 and _MTF_CACHE['data']:
-        return _MTF_CACHE['data']
+    with _MTF_CACHE_LOCK:
+        if now - _MTF_CACHE['timestamp'] < 10 and _MTF_CACHE['data']:
+            return list(_MTF_CACHE['data'])
 
     import concurrent.futures
     results = []
@@ -485,7 +489,8 @@ def get_mtf_heatmap_data():
                 results.append(res)
 
     results.sort(key=lambda x: OPTIMIZED_SYMBOLS.index(x['symbol']) if x['symbol'] in OPTIMIZED_SYMBOLS else 99)
-    _MTF_CACHE = {'timestamp': now, 'data': results}
+    with _MTF_CACHE_LOCK:
+        _MTF_CACHE = {'timestamp': now, 'data': results}
     return results
 
 # --------------------------------------------------------------------------
@@ -867,15 +872,21 @@ _EXCHANGE_INFO_TS = 0
 
 def sync_server_time():
     global _SERVER_TIME_OFFSET, _SERVER_TIME_SYNCED
-    try:
-        t_res = requests.get('https://fapi.binance.com/fapi/v1/time', timeout=3)
-        if t_res.status_code == 200:
-            server_ts = t_res.json()['serverTime']
-            local_ts = int(time.time() * 1000)
-            _SERVER_TIME_OFFSET = server_ts - local_ts
-            _SERVER_TIME_SYNCED = True
-    except Exception:
-        _SERVER_TIME_OFFSET = 0
+    for attempt in range(2):
+        try:
+            t_res = requests.get('https://fapi.binance.com/fapi/v1/time', timeout=3)
+            if t_res.status_code == 200:
+                server_ts = t_res.json()['serverTime']
+                local_ts = int(time.time() * 1000)
+                _SERVER_TIME_OFFSET = server_ts - local_ts
+                _SERVER_TIME_SYNCED = True
+                return
+        except Exception as e:
+            if attempt == 1:
+                if not _SERVER_TIME_SYNCED:
+                    _SERVER_TIME_OFFSET = 0
+                print(f"[SERVER TIME SYNC WARN] Failed to sync Binance server time ({e}). Retaining offset: {_SERVER_TIME_OFFSET}ms", flush=True)
+            time.sleep(0.5)
 
 def get_symbol_precision(symbol):
     global _EXCHANGE_INFO_CACHE, _EXCHANGE_INFO_TS
@@ -1638,53 +1649,54 @@ def check_directional_portfolio_cap(symbol, target_side, max_same_dir=3, positio
     """
     global ACTIVE_POSITION_TARGETS, LAST_ENTRY_TIMESTAMPS
     try:
-        # 1. Staggered Entry Cooldown (15-min spacing between same-direction entries)
-        dir_key = 'BUY' if target_side.upper() in ['BUY', 'LONG'] else 'SELL'
-        last_dir_time = LAST_ENTRY_TIMESTAMPS.get(dir_key, 0)
-        time_since = time.time() - last_dir_time
-        if time_since < 900 and last_dir_time > 0: # 15 minutes
-            mins_left = (900 - time_since) / 60
-            return False, 0, f"Staggered Entry Cooldown Active ({mins_left:.1f}m left before adding next {dir_key} position ⏳)"
+        with _ENGINE_LOCK:
+            # 1. Staggered Entry Cooldown (15-min spacing between same-direction entries)
+            dir_key = 'BUY' if target_side.upper() in ['BUY', 'LONG'] else 'SELL'
+            last_dir_time = LAST_ENTRY_TIMESTAMPS.get(dir_key, 0)
+            time_since = time.time() - last_dir_time
+            if time_since < 900 and last_dir_time > 0: # 15 minutes
+                mins_left = (900 - time_since) / 60
+                return False, 0, f"Staggered Entry Cooldown Active ({mins_left:.1f}m left before adding next {dir_key} position ⏳)"
 
-        if positions is None and 'positions' not in kwargs:
-            positions = get_binance_futures_positions()
-        elif positions is None and 'positions' in kwargs:
-            positions = kwargs['positions']
+            if positions is None and 'positions' not in kwargs:
+                positions = get_binance_futures_positions()
+            elif positions is None and 'positions' in kwargs:
+                positions = kwargs['positions']
 
-        if positions is None:
-            return False, 0, "Positions API unavailable - Fail Closed 🛡️"
+            if positions is None:
+                return False, 0, "Positions API unavailable - Fail Closed 🛡️"
 
-        if not positions:
-            return True, 0, "No Active Positions"
+            if not positions:
+                return True, 0, "No Active Positions"
 
-        long_risk_count = 0
-        short_risk_count = 0
+            long_risk_count = 0
+            short_risk_count = 0
 
-        for p in positions:
-            sym = p['symbol']
-            amt = float(p.get('positionAmt', 0.0))
-            if abs(amt) == 0.0:
-                continue
+            for p in positions:
+                sym = p['symbol']
+                amt = float(p.get('positionAmt', 0.0))
+                if abs(amt) == 0.0:
+                    continue
 
-            side = 'LONG' if amt > 0 else 'SHORT'
-            target = ACTIVE_POSITION_TARGETS.get(sym, {})
-            # If position has already scaled out at TP1 and is at Breakeven, it is risk-free
-            if target.get('tp1_hit'):
-                continue
+                side = 'LONG' if amt > 0 else 'SHORT'
+                target = ACTIVE_POSITION_TARGETS.get(sym, {})
+                # If position has already scaled out at TP1 and is at Breakeven, it is risk-free
+                if target.get('tp1_hit'):
+                    continue
 
-            if side == 'LONG':
-                long_risk_count += 1
-            else:
-                short_risk_count += 1
+                if side == 'LONG':
+                    long_risk_count += 1
+                else:
+                    short_risk_count += 1
 
-        is_long = target_side.upper() in ['BUY', 'LONG']
-        active_same_dir = long_risk_count if is_long else short_risk_count
+            is_long = target_side.upper() in ['BUY', 'LONG']
+            active_same_dir = long_risk_count if is_long else short_risk_count
 
-        if active_same_dir >= max_same_dir:
-            side_str = "LONG" if is_long else "SHORT"
-            return False, active_same_dir, f"Max {max_same_dir} {side_str} positions active ({active_same_dir}/{max_same_dir}) 🛡️"
+            if active_same_dir >= max_same_dir:
+                side_str = "LONG" if is_long else "SHORT"
+                return False, active_same_dir, f"Max {max_same_dir} {side_str} positions active ({active_same_dir}/{max_same_dir}) 🛡️"
 
-        return True, active_same_dir, "Directional Cap OK"
+            return True, active_same_dir, "Directional Cap OK"
     except Exception:
         return True, 0, "Cap Check Exception"
 
@@ -1972,7 +1984,7 @@ def place_binance_futures_tp_sl(symbol, side, last_price, atr, leverage=50, tota
 # Upgrade 4: 3-Stage Scale-Out & Dynamic Trailing Stop Daemon
 # --------------------------------------------------------------------------
 ACTIVE_POSITION_TARGETS = {}
-_ACTIVE_TARGETS_LOCK = threading.Lock()
+_ACTIVE_TARGETS_LOCK = _ENGINE_LOCK
 
 def _replace_protective_stop(sym, close_side, side, qty, new_stop_price, price_prec, old_order_id, context_label, mark_price=None, *args, **kwargs):
     """
@@ -2238,7 +2250,7 @@ def place_binance_futures_market_order(symbol="XRPUSDT", side="BUY", trade_usdt=
     ref_balance = total_balance if total_balance > 0 else avail_balance
     
     # Circuit breaker check
-    if not CIRCUIT_BREAKER.check_and_update(avail_balance):
+    if not CIRCUIT_BREAKER.check_and_update(ref_balance):
         print(f"[CIRCUIT BREAKER TRIPPED] Trade cancelled: {CIRCUIT_BREAKER.trip_reason}")
         send_telegram_msg(f"🛑 <b>CIRCUIT BREAKER ACTIVE</b>\n\nTrade cancelled for #{symbol}.\nReason: {CIRCUIT_BREAKER.trip_reason}\nAutomated trading is paused.")
         return {'error': 'Circuit breaker active', 'reason': CIRCUIT_BREAKER.trip_reason}
@@ -3168,7 +3180,7 @@ class WeatherEnsembleBot:
 
         return entry
 
-    def fetch_binance_klines(self, symbol="XRPUSDT", interval=None, limit=100):
+    def fetch_binance_klines(self, symbol="XRPUSDT", interval=None, limit=250):
         if interval is None:
             interval = self.timeframe
         url = "https://fapi.binance.com/fapi/v1/klines"
@@ -3190,8 +3202,8 @@ class WeatherEnsembleBot:
                         'volume': float(k[5])
                     })
                 return pd.DataFrame(data, index=dates)
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[KLINES WARN] Failed to fetch klines for {symbol}: {e}", flush=True)
         return None
 
     def start_telegram_command_listener(self):
@@ -3356,7 +3368,7 @@ class WeatherEnsembleBot:
                 send_telegram_msg("\n".join(lines), reply_markup=get_telegram_inline_keyboard(self.live_trading))
 
         elif cmd == '/circuit':
-            bal = get_binance_futures_usdt_balance()
+            bal = get_binance_futures_usdt_balance(which='total')
             CIRCUIT_BREAKER.check_and_update(bal)
             trip_str = f"🛑 <b>TRIPPED</b> ({CIRCUIT_BREAKER.trip_reason})" if CIRCUIT_BREAKER.circuit_tripped else "🟢 <b>NORMAL / SAFE</b>"
             msg = (

@@ -29,7 +29,10 @@ try:
         get_divergence_status
     )
     from order_flow_engine import OrderFlowEngine
-except Exception:
+except Exception as e:
+    import traceback
+    print(f"[SERVER WARNING] Failed to import helpers from main/order_flow_engine: {e}", flush=True)
+    traceback.print_exc()
     get_binance_futures_positions = lambda: []
     get_binance_futures_usdt_balance = lambda: 0.0
     close_binance_futures_position = lambda sym: {'error': 'Helper not available'}
@@ -304,15 +307,21 @@ class WebDashboardHandler(BaseHTTPRequestHandler):
                 '--max-positions', str(max_positions),
                 '--directional-cap', str(directional_cap)
             ]
+            log_file = None
             try:
                 log_file = open(LOG_FILE_PATH, 'a', encoding='utf-8')
                 log_file.write(f"\n--- BOT STARTED: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')} ---\n")
                 log_file.flush()
                 BOT_PROCESS = subprocess.Popen(cmd, cwd=PROJECT_DIR, stdout=log_file, stderr=subprocess.STDOUT)
-                log_file.close()
                 res = {'status': 'success', 'message': f'Bot started (PID: {BOT_PROCESS.pid})', 'running': True, 'pid': BOT_PROCESS.pid}
             except Exception as e:
                 res = {'status': 'error', 'message': f'Failed to start bot: {str(e)}', 'running': False}
+            finally:
+                if log_file:
+                    try:
+                        log_file.close()
+                    except Exception:
+                        pass
         else:
             res = {'status': 'already_running', 'message': f'Bot is already running (PID: {BOT_PROCESS.pid})', 'running': True, 'pid': BOT_PROCESS.pid}
 

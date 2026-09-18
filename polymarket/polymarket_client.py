@@ -36,7 +36,7 @@ def get_now_utc8_str(fmt: str = "%Y-%m-%d %H:%M:%S UTC+8") -> str:
 # ── One-time UTF-8 fix ──────────────────────────────────────────────────────
 if sys.platform == "win32":
     try: sys.stdout.reconfigure(encoding='utf-8')
-    except: pass
+    except Exception: pass
 
 # ── One-time .env load ──────────────────────────────────────────────────────
 _ENV_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env")
