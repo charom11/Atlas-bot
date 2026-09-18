@@ -20,7 +20,7 @@
     "DIVERGENCE": 1.00
   },
   "execution": {
-    "leverage": 75,
+    "leverage": 5,
     "margin_pct": 0.03,
     "swing_tp1_atr_multiplier": 2.2,
     "swing_tp2_atr_multiplier": 2.8,

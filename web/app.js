@@ -67,9 +67,9 @@ const state = {
   autoEngineRunning: true,
   simulationSpeed: 400,   // ms per bar update in simulation
   currentFilterCategory: 'all',
-  currentSymbol: 'XRPUSDT',
+  currentSymbol: 'BTCUSDT',
   walletBalance: 14.20,
-  leverage: 75,
+  leverage: 5,
   sizingMode: 'margin',   // 'margin' mode for 3% margin allocation
   activeWs: null,
   modelStates: [],        // Stores latest output for 31 models

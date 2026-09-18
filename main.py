@@ -1287,7 +1287,7 @@ def check_portfolio_risk_capacity(balance, new_margin_usdt, max_portfolio_margin
             # positionRisk supplies notional; retain a mark-price fallback for
             # callers that pass normalized position records.
             notional = abs(float(p.get('notional', float(p.get('positionAmt', 0.0)) * float(p.get('markPrice', 0.0)))))
-            lev = float(p.get('leverage', 50))
+            lev = float(p.get('leverage', 5))
             total_current_margin += (notional / lev) if lev > 0 else 0.0
 
         max_allowed_margin = balance * max_portfolio_margin_pct
@@ -4223,7 +4223,7 @@ class WeatherEnsembleBot:
                     f"• <b>/dircap N</b> - Set max same-direction positions (e.g. <code>/dircap 4</code>).\n"
                     f"• <b>/maxpos N</b> - Set max concurrent positions (e.g. <code>/maxpos 8</code>).\n"
                     f"• <b>/margin N</b> - Set capital risk percentage (e.g. <code>/margin 3</code>).\n"
-                    f"• <b>/leverage N</b> - Set leverage multiplier (e.g. <code>/leverage 50</code>).\n"
+                    f"• <b>/leverage N</b> - Set leverage multiplier (e.g. <code>/leverage 5</code>).\n"
                     f"• <b>/circuit</b> - View daily circuit breaker & drawdown status.\n"
                     f"• <b>/clean</b> - Manually purge leftover/orphaned orders.\n"
                     f"• <b>/closeall</b> - Emergency market close all open positions.\n"

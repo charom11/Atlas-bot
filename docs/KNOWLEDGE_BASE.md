@@ -104,10 +104,15 @@ Following PR #1 merge (`349ea9f`), four architectural discrepancies were resolve
 
 ### Phase 4: Institutional Risk & Configuration Execution
 Implemented all approved recommendations:
-1. **Leverage Reduced to 5x Across All Entrypoints:**
-   - `main.py`: `WeatherEnsembleBot.__init__`, `place_binance_futures_tp_sl`, `place_binance_futures_market_order`, `set_binance_futures_leverage`, and CLI argument `--leverage` set to default `5`.
-   - `Dockerfile`: Default CMD updated from `--leverage 50` to `--leverage 5`.
+1. **Leverage Reduced to 5x Across All Entrypoints & Launch Scripts:**
+   - `main.py`: `WeatherEnsembleBot.__init__`, `place_binance_futures_tp_sl`, `place_binance_futures_market_order`, `set_binance_futures_leverage`, position margin fallback (`p.get('leverage', 5)`), and CLI argument `--leverage` set to default `5`.
+   - `Dockerfile` & `config/Dockerfile`: Default CMD updated from `--leverage 50` to `--leverage 5`.
    - `server.py` & `core/server.py`: `/api/start` default leverage parameter set to `5`.
+   - `run_laptop_watchdog.bat` & `scripts/run_laptop_watchdog.bat`: Updated `--leverage 50` $\rightarrow$ `--leverage 5` and banner to `5x Leverage Cap`.
+   - `run_24_7_windows_watchdog.bat` & `scripts/run_24_7_windows_watchdog.bat`: Updated `--leverage 75` $\rightarrow$ `--leverage 5` and banner to `5x Leverage`.
+   - `scripts/render.yaml`: Updated `startCommand` from `--leverage 50` to `--leverage 5`.
+   - `web/app.js`: Updated initial state default from `leverage: 75` $\rightarrow$ `leverage: 5`.
+   - `config/tuned_atlas_profile.json`: Updated execution profile from `"leverage": 75` $\rightarrow$ `"leverage": 5`.
    - `desktop_terminal.py` & `core/desktop_terminal.py`: Order dialog default set to `5x`.
 2. **Universe Optimization (`XRPUSDT` $\rightarrow$ `SUIUSDT`):**
    - Replaced `XRPUSDT` with `SUIUSDT` in `OPTIMIZED_SYMBOLS` in `main.py`.
