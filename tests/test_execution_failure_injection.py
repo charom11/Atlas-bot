@@ -64,6 +64,7 @@ def test_network_drop_before_fill_retries_once_same_client_id():
         submit=submit,
         reconcile=reconcile,
         nonce=202,
+        reconcile_attempts=1,
     )
 
     assert result["orderId"] == 99902

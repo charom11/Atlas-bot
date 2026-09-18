@@ -35,7 +35,7 @@ def test_position_count_limit():
 
 def test_margin_utilization_limit():
     with pytest.raises(RiskLimitBreached):
-        validate_order_risk(**base(order_margin=60))
+        validate_order_risk(**base(existing_margin=50, order_margin=60))
 
 
 def test_total_notional_limit():

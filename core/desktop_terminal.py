@@ -357,9 +357,9 @@ class DesktopQuantTerminal(tk.Tk):
                 ), tags=(tag,))
 
     def execute_trade(self, side):
-        if not messagebox.askyesno("Confirm Order", f"Execute {side} Market Order for #{self.active_symbol} at 50x leverage?"):
+        if not messagebox.askyesno("Confirm Order", f"Execute {side} Market Order for #{self.active_symbol} at 5x leverage?"):
             return
-        res = place_binance_futures_market_order(symbol=self.active_symbol, side=side, margin_pct=0.03, leverage=50)
+        res = place_binance_futures_market_order(symbol=self.active_symbol, side=side, margin_pct=0.03, leverage=5)
         if res and res.get('error'):
             messagebox.showerror("Execution Error", f"Failed to execute order: {res['error']}")
         else:

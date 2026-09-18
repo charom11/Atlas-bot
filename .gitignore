@@ -28,3 +28,10 @@ bot_output.log
 .idea/
 .DS_Store
 Thumbs.db
+
+# Archival, backup, and historical data cache folders
+backups/
+core_backup/
+atlas-gic-temp/
+To Qwen/
+backtests/historical_data_cache/

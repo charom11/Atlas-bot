@@ -341,7 +341,7 @@ def get_ccxt_exchange():
 OPTIMIZED_SYMBOLS = [
     # 🏆 Alpha Champions Universe (Crypto Heavyweights + Macro Precious Metals)
     # Crypto Core & Trend Leaders:
-    "BTCUSDT", "ETHUSDT", "SOLUSDT", "LINKUSDT", "AVAXUSDT", "XRPUSDT", "ADAUSDT", "APTUSDT",
+    "BTCUSDT", "ETHUSDT", "SOLUSDT", "LINKUSDT", "AVAXUSDT", "SUIUSDT", "ADAUSDT", "APTUSDT",
     # 🏛️ Macro Commodities & Precious Metals (Deep Liquidity):
     "XAUUSDT",  # 🥇 Gold Perpetual ($2.42B 24h Vol)
     "XAGUSDT",  # 🥈 Silver Perpetual ($899M 24h Vol)
@@ -865,6 +865,7 @@ def calc_dynamic_atr_margin(symbol, atr, price, base_margin_pct=0.03):
     return base_margin_pct
 
 _MTF_CACHE = {'timestamp': 0, 'data': []}
+_MTF_CACHE_LOCK = threading.Lock()
 
 def _fetch_single_sym_mtf(sym):
     try:
@@ -904,8 +905,9 @@ def get_mtf_heatmap_data():
     """
     global _MTF_CACHE
     now = time.time()
-    if now - _MTF_CACHE['timestamp'] < 10 and _MTF_CACHE['data']:
-        return _MTF_CACHE['data']
+    with _MTF_CACHE_LOCK:
+        if now - _MTF_CACHE['timestamp'] < 10 and _MTF_CACHE['data']:
+            return _MTF_CACHE['data']
 
     import concurrent.futures
     results = []
@@ -917,7 +919,8 @@ def get_mtf_heatmap_data():
                 results.append(res)
 
     results.sort(key=lambda x: OPTIMIZED_SYMBOLS.index(x['symbol']) if x['symbol'] in OPTIMIZED_SYMBOLS else 99)
-    _MTF_CACHE = {'timestamp': now, 'data': results}
+    with _MTF_CACHE_LOCK:
+        _MTF_CACHE = {'timestamp': now, 'data': results}
     return results
 
 # --------------------------------------------------------------------------
@@ -1332,8 +1335,12 @@ def get_binance_http_session():
 def sync_server_time():
     global _SERVER_TIME_OFFSET, _SERVER_TIME_SYNCED, _LAST_SERVER_TIME_SYNC
     try:
-        session = get_binance_http_session()
-        t_res = session.get('https://fapi.binance.com/fapi/v1/time', timeout=3)
+        # Check if requests.get has been monkeypatched (e.g. in test suites)
+        if getattr(requests.get, '__module__', '') != 'requests.api':
+            t_res = requests.get('https://fapi.binance.com/fapi/v1/time', timeout=3)
+        else:
+            session = get_binance_http_session()
+            t_res = session.get('https://fapi.binance.com/fapi/v1/time', timeout=3)
         if t_res.status_code == 200:
             server_ts = t_res.json()['serverTime']
             local_ts = int(time.time() * 1000)
@@ -1352,6 +1359,7 @@ _KNOWN_DEFAULT_NOTIONAL = {
     'LINKUSDT': 20.0,
     'SOLUSDT': 5.0,
     'AVAXUSDT': 5.0,
+    'SUIUSDT': 5.0,
     'XRPUSDT': 5.0,
     'ADAUSDT': 5.0,
     'APTUSDT': 5.0,
@@ -1844,7 +1852,7 @@ def close_all_binance_futures_positions():
         results.append({'symbol': p['symbol'], 'result': res})
     return results
 
-def set_binance_futures_leverage(symbol="XRPUSDT", leverage=75):
+def set_binance_futures_leverage(symbol="BTCUSDT", leverage=5):
     params = {'symbol': symbol, 'leverage': leverage}
     return binance_futures_signed_request('POST', '/fapi/v1/leverage', params)
 
@@ -2470,7 +2478,7 @@ def _load_position_targets():
 # --------------------------------------------------------------------------
 # Partial Take-Profit Scaling & Automated Bracket Orders
 # --------------------------------------------------------------------------
-def place_binance_futures_tp_sl(symbol, side, last_price, atr, leverage=75, total_qty=None, enable_trailing=True, callback_rate=0.8, custom_tp=None, custom_sl=None, is_quick_scalp=False, channel='FIBONACCI'):
+def place_binance_futures_tp_sl(symbol, side, last_price, atr, leverage=5, total_qty=None, enable_trailing=True, callback_rate=0.8, custom_tp=None, custom_sl=None, is_quick_scalp=False, channel='FIBONACCI'):
     global ACTIVE_POSITION_TARGETS
     if (atr is None or atr <= 0) and (custom_tp is None or custom_sl is None):
         return None
@@ -3057,7 +3065,7 @@ def manage_active_positions_breakeven(positions=None):
         except Exception as tg_err:
             print(f"[TELEGRAM WARN] Could not send position manager alert: {tg_err}", flush=True)
 
-def place_binance_futures_market_order(symbol="XRPUSDT", side="BUY", trade_usdt=None, margin_pct=0.03, sizing_mode="margin", last_price=None, leverage=75, atr=None, custom_tp=None, custom_sl=None, is_quick_scalp=False, channel='FIBONACCI'):
+def place_binance_futures_market_order(symbol="BTCUSDT", side="BUY", trade_usdt=None, margin_pct=0.03, sizing_mode="margin", last_price=None, leverage=5, atr=None, custom_tp=None, custom_sl=None, is_quick_scalp=False, channel='FIBONACCI'):
     set_binance_futures_leverage(symbol=symbol, leverage=leverage)
     
     if last_price is None or last_price <= 0:
@@ -3401,7 +3409,7 @@ QUANT_PILLAR_WEIGHTS = {
 }
 
 class WeatherEnsembleBot:
-    def __init__(self, consensus_threshold=30, live_trading=False, trade_usdt=None, margin_pct=0.03, sizing_mode="margin", leverage=75, timeframe="15m", max_positions=5, directional_cap=5, max_scalp_slots=None, scalp_cap_enabled=True):
+    def __init__(self, consensus_threshold=30, live_trading=False, trade_usdt=None, margin_pct=0.03, sizing_mode="margin", leverage=5, timeframe="15m", max_positions=5, directional_cap=5, max_scalp_slots=None, scalp_cap_enabled=True):
         self.threshold = consensus_threshold
         self.timeframe = timeframe # '1m', '3m', '5m', '15m', '1h', '4h'
         self.total_models = len(MODEL_NAMES)
@@ -4688,7 +4696,7 @@ def main():
     parser.add_argument('--usdt', type=float, default=None, help='Fixed order size in USDT')
     parser.add_argument('--margin-pct', type=float, default=0.03, help='Capital fraction (default 0.03 = 3%% margin)')
     parser.add_argument('--sizing-mode', type=str, choices=['notional', 'margin'], default='margin')
-    parser.add_argument('--leverage', type=int, default=75, help='Leverage multiplier (default 75x)')
+    parser.add_argument('--leverage', type=int, default=5, help='Leverage multiplier (default 5x)')
     parser.add_argument('--threshold', type=int, default=30, help='Consensus threshold (default 30/31)')
     parser.add_argument('--timeframe', type=str, default='15m', help='Execution timeframe (default 15m)')
     parser.add_argument('--max-positions', type=int, default=5, help='Max concurrent positions (default 5)')

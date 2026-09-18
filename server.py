@@ -14,6 +14,7 @@ import sys
 import urllib.parse
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from typing import Optional
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 try:
@@ -72,6 +73,19 @@ def get_python_executable():
     return sys.executable
 
 
+def safe_path(base_dir: str, rel_path: str) -> Optional[str]:
+    """Resolve a relative path against base_dir and prevent directory traversal."""
+    if not base_dir or not os.path.exists(base_dir):
+        return None
+    normalized = os.path.normpath(os.path.join(base_dir, rel_path.lstrip("/\\")))
+    real_base = os.path.realpath(base_dir)
+    real_target = os.path.realpath(normalized)
+    if real_target == real_base or real_target.startswith(real_base + os.sep):
+        if os.path.isfile(real_target):
+            return real_target
+    return None
+
+
 class WebDashboardHandler(BaseHTTPRequestHandler):
     server_version = "AtlasDashboard/2"
 
@@ -80,8 +94,11 @@ class WebDashboardHandler(BaseHTTPRequestHandler):
         # Localhost-only mode is the safe default and preserves local dashboard UX.
         if not API_TOKEN and HOST in {"127.0.0.1", "localhost", "::1"}:
             return True
-        supplied = self.headers.get("X-Atlas-Token", "")
+        supplied = self.headers.get("X-Atlas-Token", "") or self.headers.get("X-Atlas-API-Key", "")
         return bool(API_TOKEN and supplied == API_TOKEN)
+
+    def _api_authorized(self):
+        return self._authorized()
 
     def _require_auth(self):
         if self._authorized():
@@ -108,20 +125,14 @@ class WebDashboardHandler(BaseHTTPRequestHandler):
 
         if path in ["/", ""]:
             path = "/index.html"
-        candidate_dist = os.path.normpath(os.path.join(PROJECT_DIR, "frontend", "dist", path.lstrip("/")))
-        candidate_web = os.path.normpath(os.path.join(PROJECT_DIR, "web", path.lstrip("/")))
-        candidate_root = os.path.normpath(os.path.join(PROJECT_DIR, path.lstrip("/")))
+        candidate_dist = safe_path(os.path.join(PROJECT_DIR, "frontend", "dist"), path)
+        candidate_web = safe_path(os.path.join(PROJECT_DIR, "web"), path)
+        candidate_root = safe_path(PROJECT_DIR, path)
 
-        # Reject path traversal even if normalization produces an existing file.
-        project_root = os.path.realpath(PROJECT_DIR)
         candidates = [candidate_dist, candidate_web, candidate_root]
-        filepath = next(
-            (p for p in candidates if os.path.isfile(p) and os.path.realpath(p).startswith(project_root + os.sep)),
-            None,
-        )
+        filepath = next((p for p in candidates if p is not None), None)
         if filepath is None:
-            spa_index = os.path.join(PROJECT_DIR, "frontend", "dist", "index.html")
-            filepath = spa_index if os.path.isfile(spa_index) else None
+            filepath = safe_path(os.path.join(PROJECT_DIR, "frontend", "dist"), "index.html")
 
         if filepath and os.path.isfile(filepath):
             _, ext = os.path.splitext(filepath)
@@ -243,12 +254,21 @@ class WebDashboardHandler(BaseHTTPRequestHandler):
 
     def _read_json_body(self):
         try:
-            length = min(int(self.headers.get("Content-Length", 0)), 64 * 1024)
+            raw_len = int(self.headers.get("Content-Length", 0))
         except (TypeError, ValueError):
-            length = 0
+            return None
+        if raw_len > 1024 * 1024:
+            return None
+        if raw_len <= 0:
+            return {}
+        if not hasattr(self, "rfile") or self.rfile is None:
+            return None
         try:
-            return json.loads(self.rfile.read(length).decode("utf-8")) if length else {}
-        except (UnicodeDecodeError, json.JSONDecodeError):
+            payload = json.loads(self.rfile.read(raw_len).decode("utf-8"))
+            if not isinstance(payload, dict):
+                return None
+            return payload
+        except Exception:
             return None
 
     def handle_api_close_position(self):
@@ -285,7 +305,7 @@ class WebDashboardHandler(BaseHTTPRequestHandler):
         values = {
             "sizing_mode": params.get("sizing_mode", "margin"),
             "margin_pct": params.get("margin_pct", 0.03),
-            "leverage": params.get("leverage", 75),
+            "leverage": params.get("leverage", 5),
             "threshold": params.get("threshold", 30),
             "timeframe": params.get("timeframe", "15m"),
             "max_positions": params.get("max_positions", 5),

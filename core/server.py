@@ -14,6 +14,7 @@ import subprocess
 import urllib.parse
 from datetime import datetime, timezone
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
+from typing import Optional
 
 # Import Binance helper functions from main bot module
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -42,7 +43,7 @@ except Exception:
 
 BOT_PROCESS = None
 PORT = 8080
-PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LOG_FILE_PATH = os.path.join(PROJECT_DIR, 'bot_output.log')
 
 MIME_TYPES = {
@@ -64,6 +65,20 @@ def get_python_executable():
     if os.path.exists(venv_py_unix):
         return venv_py_unix
     return sys.executable
+
+
+def safe_path(base_dir: str, rel_path: str) -> Optional[str]:
+    """Resolve a relative path against base_dir and prevent directory traversal."""
+    if not base_dir or not os.path.exists(base_dir):
+        return None
+    normalized = os.path.normpath(os.path.join(base_dir, rel_path.lstrip("/\\")))
+    real_base = os.path.realpath(base_dir)
+    real_target = os.path.realpath(normalized)
+    if real_target == real_base or real_target.startswith(real_base + os.sep):
+        if os.path.isfile(real_target):
+            return real_target
+    return None
+
 
 class WebDashboardHandler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -98,21 +113,14 @@ class WebDashboardHandler(BaseHTTPRequestHandler):
         if path in ['/', '']:
             path = '/index.html'
 
-        # Check in frontend/dist first, then web/, fallback to PROJECT_DIR
-        candidate_dist = os.path.normpath(os.path.join(PROJECT_DIR, 'frontend', 'dist', path.lstrip('/')))
-        candidate_web = os.path.normpath(os.path.join(PROJECT_DIR, 'web', path.lstrip('/')))
-        candidate_root = os.path.normpath(os.path.join(PROJECT_DIR, path.lstrip('/')))
+        candidate_dist = safe_path(os.path.join(PROJECT_DIR, 'frontend', 'dist'), path)
+        candidate_web = safe_path(os.path.join(PROJECT_DIR, 'web'), path)
+        candidate_root = safe_path(PROJECT_DIR, path)
 
-        if os.path.exists(candidate_dist) and os.path.isfile(candidate_dist):
-            filepath = candidate_dist
-        elif os.path.exists(candidate_web) and os.path.isfile(candidate_web):
-            filepath = candidate_web
-        elif os.path.exists(candidate_root) and os.path.isfile(candidate_root):
-            filepath = candidate_root
-        else:
-            # Fallback to SPA index.html
-            spa_index = os.path.join(PROJECT_DIR, 'frontend', 'dist', 'index.html')
-            filepath = spa_index if os.path.exists(spa_index) else candidate_root
+        candidates = [candidate_dist, candidate_web, candidate_root]
+        filepath = next((p for p in candidates if p is not None), None)
+        if filepath is None:
+            filepath = safe_path(os.path.join(PROJECT_DIR, 'frontend', 'dist'), 'index.html')
 
         if os.path.exists(filepath) and os.path.isfile(filepath):
             _, ext = os.path.splitext(filepath)
@@ -284,7 +292,7 @@ class WebDashboardHandler(BaseHTTPRequestHandler):
 
         mode = params.get('sizing_mode', 'margin')
         margin_pct = params.get('margin_pct', 0.03)
-        leverage = params.get('leverage', 75)
+        leverage = params.get('leverage', 5)
         threshold = params.get('threshold', 30)
         timeframe = params.get('timeframe', '15m')
         max_positions = params.get('max_positions', 5)
