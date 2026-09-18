@@ -10,9 +10,17 @@ services:
       - BINANCE_API_SECRET=${BINANCE_API_SECRET}
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
-      - TELEGRAM_NOTIFICATIONS=true
+      - TELEGRAM_NOTIFICATIONS=${TELEGRAM_NOTIFICATIONS:-true}
+      # Safe defaults: the runtime guard starts non-live unless both flags are enabled.
+      - ATLAS_LIVE_TRADING=${ATLAS_LIVE_TRADING:-false}
+      - ATLAS_LIVE_CONFIRM=${ATLAS_LIVE_CONFIRM:-false}
+      - ATLAS_LEVERAGE=${ATLAS_LEVERAGE:-1}
+      - ATLAS_MARGIN_PCT=${ATLAS_MARGIN_PCT:-0.01}
+      - ATLAS_THRESHOLD=${ATLAS_THRESHOLD:-30}
+      - ATLAS_TIMEFRAME=${ATLAS_TIMEFRAME:-15m}
+      - ATLAS_MAX_POSITIONS=${ATLAS_MAX_POSITIONS:-5}
     ports:
       - "8080:8080"
     volumes:
       - ./bot_output.log:/app/bot_output.log
-      - ./.env:/app/.env
+      - ./.env:/app/.env:ro
