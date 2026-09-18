@@ -13,7 +13,7 @@ COLOR 0A
 echo =========================================================================
 echo  ⚡ STARTING WEATHER-ENSEMBLE AI 24/7 LIVE TRADING SUITE
 echo =========================================================================
-echo  • Mode:        REAL BINANCE FUTURES (5x Leverage / 3%% Dynamic Margin)
+echo  • Mode:        REAL BINANCE FUTURES (50x Leverage / 3%% Dynamic Margin)
 echo  • Universe:    BTC, ETH, SOL, LINK, AVAX, SUI, ADA, APT, XAU (Gold), XAG (Silver), PAXG
 echo  • Telegram C2: ACTIVE (Control directly from your phone)
 echo  • Watchdog:    SELF-HEALING AUTO-RESTART ENABLED
@@ -29,7 +29,7 @@ powercfg /change standby-timeout-ac 0 >nul 2>&1
 echo [%date% %time%] [WATCHDOG] Booting Weather-Ensemble AI Live Daemon...
 
 :: Run the Live Bot with auto-healing
-"%~dp0.venv\Scripts\python.exe" -u main.py --trade-live --sizing-mode margin --margin-pct 0.03 --leverage 5 --threshold 30 --timeframe 15m --max-positions 5 --directional-cap 5
+"%~dp0.venv\Scripts\python.exe" -u main.py --trade-live --sizing-mode margin --margin-pct 0.03 --leverage 50 --threshold 30 --timeframe 15m --max-positions 5 --directional-cap 5
 
 echo.
 echo ⚠️ [%date% %time%] [WATCHDOG WARNING] Bot process exited or disconnected!

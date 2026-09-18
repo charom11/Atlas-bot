@@ -1287,7 +1287,7 @@ def check_portfolio_risk_capacity(balance, new_margin_usdt, max_portfolio_margin
             # positionRisk supplies notional; retain a mark-price fallback for
             # callers that pass normalized position records.
             notional = abs(float(p.get('notional', float(p.get('positionAmt', 0.0)) * float(p.get('markPrice', 0.0)))))
-            lev = float(p.get('leverage', 5))
+            lev = float(p.get('leverage', 50))
             total_current_margin += (notional / lev) if lev > 0 else 0.0
 
         max_allowed_margin = balance * max_portfolio_margin_pct
@@ -1852,7 +1852,7 @@ def close_all_binance_futures_positions():
         results.append({'symbol': p['symbol'], 'result': res})
     return results
 
-def set_binance_futures_leverage(symbol="BTCUSDT", leverage=5):
+def set_binance_futures_leverage(symbol="BTCUSDT", leverage=50):
     params = {'symbol': symbol, 'leverage': leverage}
     return binance_futures_signed_request('POST', '/fapi/v1/leverage', params)
 
@@ -2478,7 +2478,7 @@ def _load_position_targets():
 # --------------------------------------------------------------------------
 # Partial Take-Profit Scaling & Automated Bracket Orders
 # --------------------------------------------------------------------------
-def place_binance_futures_tp_sl(symbol, side, last_price, atr, leverage=5, total_qty=None, enable_trailing=True, callback_rate=0.8, custom_tp=None, custom_sl=None, is_quick_scalp=False, channel='FIBONACCI'):
+def place_binance_futures_tp_sl(symbol, side, last_price, atr, leverage=50, total_qty=None, enable_trailing=True, callback_rate=0.8, custom_tp=None, custom_sl=None, is_quick_scalp=False, channel='FIBONACCI'):
     global ACTIVE_POSITION_TARGETS
     if (atr is None or atr <= 0) and (custom_tp is None or custom_sl is None):
         return None
@@ -3065,7 +3065,7 @@ def manage_active_positions_breakeven(positions=None):
         except Exception as tg_err:
             print(f"[TELEGRAM WARN] Could not send position manager alert: {tg_err}", flush=True)
 
-def place_binance_futures_market_order(symbol="BTCUSDT", side="BUY", trade_usdt=None, margin_pct=0.03, sizing_mode="margin", last_price=None, leverage=5, atr=None, custom_tp=None, custom_sl=None, is_quick_scalp=False, channel='FIBONACCI'):
+def place_binance_futures_market_order(symbol="BTCUSDT", side="BUY", trade_usdt=None, margin_pct=0.03, sizing_mode="margin", last_price=None, leverage=50, atr=None, custom_tp=None, custom_sl=None, is_quick_scalp=False, channel='FIBONACCI'):
     set_binance_futures_leverage(symbol=symbol, leverage=leverage)
     
     if last_price is None or last_price <= 0:
@@ -3409,7 +3409,7 @@ QUANT_PILLAR_WEIGHTS = {
 }
 
 class WeatherEnsembleBot:
-    def __init__(self, consensus_threshold=30, live_trading=False, trade_usdt=None, margin_pct=0.03, sizing_mode="margin", leverage=5, timeframe="15m", max_positions=5, directional_cap=5, max_scalp_slots=None, scalp_cap_enabled=True):
+    def __init__(self, consensus_threshold=30, live_trading=False, trade_usdt=None, margin_pct=0.03, sizing_mode="margin", leverage=50, timeframe="15m", max_positions=5, directional_cap=5, max_scalp_slots=None, scalp_cap_enabled=True):
         self.threshold = consensus_threshold
         self.timeframe = timeframe # '1m', '3m', '5m', '15m', '1h', '4h'
         self.total_models = len(MODEL_NAMES)
@@ -4223,7 +4223,7 @@ class WeatherEnsembleBot:
                     f"• <b>/dircap N</b> - Set max same-direction positions (e.g. <code>/dircap 4</code>).\n"
                     f"• <b>/maxpos N</b> - Set max concurrent positions (e.g. <code>/maxpos 8</code>).\n"
                     f"• <b>/margin N</b> - Set capital risk percentage (e.g. <code>/margin 3</code>).\n"
-                    f"• <b>/leverage N</b> - Set leverage multiplier (e.g. <code>/leverage 5</code>).\n"
+                    f"• <b>/leverage N</b> - Set leverage multiplier (e.g. <code>/leverage 50</code>).\n"
                     f"• <b>/circuit</b> - View daily circuit breaker & drawdown status.\n"
                     f"• <b>/clean</b> - Manually purge leftover/orphaned orders.\n"
                     f"• <b>/closeall</b> - Emergency market close all open positions.\n"
@@ -4696,7 +4696,7 @@ def main():
     parser.add_argument('--usdt', type=float, default=None, help='Fixed order size in USDT')
     parser.add_argument('--margin-pct', type=float, default=0.03, help='Capital fraction (default 0.03 = 3%% margin)')
     parser.add_argument('--sizing-mode', type=str, choices=['notional', 'margin'], default='margin')
-    parser.add_argument('--leverage', type=int, default=5, help='Leverage multiplier (default 5x)')
+    parser.add_argument('--leverage', type=int, default=50, help='Leverage multiplier (default 50x)')
     parser.add_argument('--threshold', type=int, default=30, help='Consensus threshold (default 30/31)')
     parser.add_argument('--timeframe', type=str, default='15m', help='Execution timeframe (default 15m)')
     parser.add_argument('--max-positions', type=int, default=5, help='Max concurrent positions (default 5)')

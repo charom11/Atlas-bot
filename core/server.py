@@ -292,7 +292,7 @@ class WebDashboardHandler(BaseHTTPRequestHandler):
 
         mode = params.get('sizing_mode', 'margin')
         margin_pct = params.get('margin_pct', 0.03)
-        leverage = params.get('leverage', 5)
+        leverage = params.get('leverage', 50)
         threshold = params.get('threshold', 30)
         timeframe = params.get('timeframe', '15m')
         max_positions = params.get('max_positions', 5)

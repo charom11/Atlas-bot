@@ -69,7 +69,7 @@ const state = {
   currentFilterCategory: 'all',
   currentSymbol: 'BTCUSDT',
   walletBalance: 14.20,
-  leverage: 5,
+  leverage: 50,
   sizingMode: 'margin',   // 'margin' mode for 3% margin allocation
   activeWs: null,
   modelStates: [],        // Stores latest output for 31 models

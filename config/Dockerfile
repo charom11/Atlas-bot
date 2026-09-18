@@ -26,4 +26,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD pgrep -f "python main.py" >/dev/null || exit 1
 
 # Start both server and bot in 24/7 self-healing mode
-CMD ["python", "main.py", "--trade-live", "--sizing-mode", "margin", "--margin-pct", "0.03", "--leverage", "5", "--threshold", "30", "--timeframe", "15m", "--max-positions", "5"]
+CMD ["python", "main.py", "--trade-live", "--sizing-mode", "margin", "--margin-pct", "0.03", "--leverage", "50", "--threshold", "30", "--timeframe", "15m", "--max-positions", "5"]

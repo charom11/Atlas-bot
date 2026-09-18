@@ -159,7 +159,7 @@ echo =========================================================================
 echo  🚀 STARTING 24/7 AUTONOMOUS LAPTOP WATCHDOG
 echo =========================================================================
 echo  • Target Script: main.py
-echo  • Sizing Mode:   Dynamic Margin (3%% Risk, 5x Leverage Cap)
+echo  • Sizing Mode:   Dynamic Margin (3%% Risk, 50x Leverage Cap)
 echo  • Circuit Break: Auto-pause on instant crash to prevent restart loop
 echo =========================================================================
 echo.
@@ -171,7 +171,7 @@ echo [%date% %time%] [WATCHDOG] Launching Weather-Ensemble Trading Engine...
 echo.
 
 :: Launch the bot
-%PYTHON_EXE% -u main.py --trade-live --sizing-mode margin --margin-pct 0.03 --leverage 5 --threshold 30 --timeframe 15m --max-positions 5 --directional-cap 5
+%PYTHON_EXE% -u main.py --trade-live --sizing-mode margin --margin-pct 0.03 --leverage 50 --threshold 30 --timeframe 15m --max-positions 5 --directional-cap 5
 set "BOT_EXIT_CODE=%ERRORLEVEL%"
 
 for /f %%i in ('powershell -command "[DateTimeOffset]::UtcNow.ToUnixTimeSeconds() - %START_TIME%"') do set "RUN_DURATION=%%i"

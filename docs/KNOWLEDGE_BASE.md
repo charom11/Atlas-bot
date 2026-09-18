@@ -104,16 +104,15 @@ Following PR #1 merge (`349ea9f`), four architectural discrepancies were resolve
 
 ### Phase 4: Institutional Risk & Configuration Execution
 Implemented all approved recommendations:
-1. **Leverage Reduced to 5x Across All Entrypoints & Launch Scripts:**
-   - `main.py`: `WeatherEnsembleBot.__init__`, `place_binance_futures_tp_sl`, `place_binance_futures_market_order`, `set_binance_futures_leverage`, position margin fallback (`p.get('leverage', 5)`), and CLI argument `--leverage` set to default `5`.
-   - `Dockerfile` & `config/Dockerfile`: Default CMD updated from `--leverage 50` to `--leverage 5`.
-   - `server.py` & `core/server.py`: `/api/start` default leverage parameter set to `5`.
-   - `run_laptop_watchdog.bat` & `scripts/run_laptop_watchdog.bat`: Updated `--leverage 50` $\rightarrow$ `--leverage 5` and banner to `5x Leverage Cap`.
-   - `run_24_7_windows_watchdog.bat` & `scripts/run_24_7_windows_watchdog.bat`: Updated `--leverage 75` $\rightarrow$ `--leverage 5` and banner to `5x Leverage`.
-   - `scripts/render.yaml`: Updated `startCommand` from `--leverage 50` to `--leverage 5`.
-   - `web/app.js`: Updated initial state default from `leverage: 75` $\rightarrow$ `leverage: 5`.
-   - `config/tuned_atlas_profile.json`: Updated execution profile from `"leverage": 75` $\rightarrow$ `"leverage": 5`.
-   - `desktop_terminal.py` & `core/desktop_terminal.py`: Order dialog default set to `5x`.
+1. **Leverage Configured to 50x Across All Entrypoints & Launch Scripts:**
+   - `main.py`: `WeatherEnsembleBot.__init__`, `place_binance_futures_tp_sl`, `place_binance_futures_market_order`, `set_binance_futures_leverage`, position margin fallback (`p.get('leverage', 50)`), and CLI argument `--leverage` set to default `50` (50x).
+   - `Dockerfile` & `config/Dockerfile`: Default CMD configured with `--leverage 50`.
+   - `core/server.py`: `/api/start` default leverage parameter set to `50`.
+   - `run_laptop_watchdog.bat` & `scripts/run_laptop_watchdog.bat`: Configured with `--leverage 50` and banner `50x Leverage Cap`.
+   - `run_24_7_windows_watchdog.bat` & `scripts/run_24_7_windows_watchdog.bat`: Configured with `--leverage 50` and banner `50x Leverage`.
+   - `scripts/render.yaml`: Configured `startCommand` with `--leverage 50`.
+   - `web/app.js`: Configured initial state default with `leverage: 50`.
+   - `config/tuned_atlas_profile.json`: Configured execution profile with `"leverage": 50`.
 2. **Universe Optimization (`XRPUSDT` $\rightarrow$ `SUIUSDT`):**
    - Replaced `XRPUSDT` with `SUIUSDT` in `OPTIMIZED_SYMBOLS` in `main.py`.
    - Added `'SUIUSDT': 5.0` to `_KNOWN_DEFAULT_NOTIONAL`.
@@ -180,7 +179,7 @@ Two research and remediation artifacts were integrated upstream on `origin/main`
 - **`WeatherEnsembleBot`**: Main orchestrator evaluating 31 consensus models, Fibonacci retracements, Potato S&R, and trailing stops.
 - **Default CLI execution**:
   ```bash
-  python main.py --trade-live --sizing-mode margin --margin-pct 0.03 --leverage 5 --threshold 30 --timeframe 15m --max-positions 5
+  python main.py --trade-live --sizing-mode margin --margin-pct 0.03 --leverage 50 --threshold 30 --timeframe 15m --max-positions 5
   ```
 
 ### `server.py` & `core/server.py` — Web Dashboard API
@@ -301,7 +300,7 @@ python server.py
 python main.py
 
 # Live trading mode:
-python main.py --trade-live --sizing-mode margin --margin-pct 0.03 --leverage 5
+python main.py --trade-live --sizing-mode margin --margin-pct 0.03 --leverage 50
 ```
 
 ### Inspecting Polymarket Predictor
