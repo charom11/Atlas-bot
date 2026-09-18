@@ -1,0 +1,41 @@
+# Git & IDE
+.git
+.github
+.vscode
+.idea
+
+# Virtual environments & dependencies
+.venv
+env/
+venv/
+ENV/
+frontend/node_modules/
+
+# Python caches
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache
+
+# Logs & output
+*.log*
+bot_output.log*
+bot.log
+bot_live.log
+bot_err.log
+task-*.log
+
+# Sensitive credentials
+.env
+.env.local
+
+# Heavy datasets, backups & historical caches
+*.csv
+data/
+backups/
+core_backup/
+atlas-gic-temp/
+To Qwen/
+backtests/historical_data_cache/
+backtests/reports/

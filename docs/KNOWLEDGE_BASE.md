@@ -309,3 +309,19 @@ python main.py --trade-live --sizing-mode margin --margin-pct 0.03 --leverage 5
 python -c "import polymarket; print(polymarket.PolymarketClient)"
 python -m polymarket.predict_all_markets
 ```
+
+### Docker Operations & Container CI
+```powershell
+# Build production container image (.dockerignore optimized)
+docker build -t atlas-bot:latest .
+
+# Run test suite inside isolated Docker container
+docker run --rm --entrypoint python atlas-bot:latest -m pytest -q
+
+# Run end-to-end CI test container
+docker compose -f docker-compose.ci.yml up --build --abort-on-container-exit
+
+# Start bot in background container (reads from .env)
+docker compose up -d
+```
+
