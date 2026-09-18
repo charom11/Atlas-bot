@@ -20,8 +20,8 @@ if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 
-REPO_ZIP_URL = "https://github.com/charom11/Ensemble-bot/archive/refs/heads/master.zip"
-FALLBACK_ZIP_URL = "https://github.com/charom11/Atlas-Bot/archive/refs/heads/master.zip"
+REPO_ZIP_URL = "https://github.com/charom11/Atlas-Bot/archive/refs/heads/strategy/candidate-v9-3-1.zip"
+FALLBACK_ZIP_URL = "https://github.com/charom11/Atlas-Bot/archive/refs/heads/main.zip"
 
 PROTECTED_ITEMS = {
     ".env",
@@ -29,17 +29,15 @@ PROTECTED_ITEMS = {
     ".git",
     ".venv",
     "bot_output.log",
-    "bot_output.log.1",
-    "bot_output.log.2",
     "v9_3_1_shadow_daemon.log",
     "task-67.log",
 }
 
 def update():
     print("=" * 75)
-    print(" 🔄 WEATHER-ENSEMBLE GITHUB UPDATER (NO GIT REQUIRED)")
+    print(" 🔄 ATLAS-BOT / WEATHER-ENSEMBLE GITHUB UPDATER (NO GIT REQUIRED)")
     print("=" * 75)
-    print(f" Target Repository: charom11/Ensemble-bot (master branch)")
+    print(f" Target Repository: charom11/Atlas-Bot (strategy/candidate-v9-3-1)")
     print(f" Working Directory: {os.path.abspath('.')}")
     print("=" * 75 + "\n")
 

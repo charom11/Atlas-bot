@@ -71,7 +71,7 @@ class SmartMoneyStructureEngine:
             # Swing High
             is_sh = True
             for w in range(1, window + 1):
-                if highs[i] < highs[i - w] or highs[i] < highs[i + w]:
+                if highs[i] <= highs[i - w] or highs[i] <= highs[i + w]:
                     is_sh = False
                     break
             if is_sh:
@@ -80,7 +80,7 @@ class SmartMoneyStructureEngine:
             # Swing Low
             is_sl = True
             for w in range(1, window + 1):
-                if lows[i] > lows[i - w] or lows[i] > lows[i + w]:
+                if lows[i] >= lows[i - w] or lows[i] >= lows[i + w]:
                     is_sl = False
                     break
             if is_sl:
