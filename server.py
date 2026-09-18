@@ -10,13 +10,18 @@ Serves the Web Dashboard and provides:
 import os
 import sys
 import json
+import hmac
 import subprocess
 import urllib.parse
 from datetime import datetime, timezone
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
+PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_DIR_REAL = os.path.realpath(PROJECT_DIR)
+if PROJECT_DIR not in sys.path:
+    sys.path.insert(0, PROJECT_DIR)
+
 # Import Binance helper functions from main bot module
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 try:
     from main import (
         get_binance_futures_positions,
@@ -44,8 +49,11 @@ except Exception as e:
     OrderFlowEngine = None
 
 BOT_PROCESS = None
-PORT = 8080
-PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
+BOT_LOG_FILE = None
+PORT = int(os.getenv('ATLAS_PORT', '8080'))
+HOST = os.getenv('ATLAS_BIND_HOST', '127.0.0.1').strip() or '127.0.0.1'
+API_TOKEN = os.getenv('ATLAS_API_TOKEN', '').strip()
+ALLOWED_ORIGIN = os.getenv('ATLAS_ALLOWED_ORIGIN', '').strip()
 LOG_FILE_PATH = os.path.join(PROJECT_DIR, 'bot_output.log')
 
 MIME_TYPES = {
@@ -68,10 +76,43 @@ def get_python_executable():
         return venv_py_unix
     return sys.executable
 
+def is_loopback_host(host):
+    return host in ('127.0.0.1', 'localhost', '::1')
+
+def safe_path(root, requested_path):
+    """Resolve a requested static path without allowing traversal outside root."""
+    root_real = os.path.realpath(root)
+    candidate = os.path.realpath(os.path.join(root_real, requested_path.lstrip('/')))
+    try:
+        if os.path.commonpath([root_real, candidate]) != root_real:
+            return None
+    except ValueError:
+        return None
+    return candidate
+
 class WebDashboardHandler(BaseHTTPRequestHandler):
+    def _api_authorized(self):
+        """Protect API access when exposed beyond localhost or when a token is configured."""
+        if API_TOKEN:
+            supplied = self.headers.get('X-Atlas-API-Key', '')
+            return hmac.compare_digest(supplied, API_TOKEN)
+        return is_loopback_host(HOST)
+
+    def _api_guard(self):
+        if self._api_authorized():
+            return True
+        self.send_json_response(401, {'status': 'error', 'error': 'Unauthorized'})
+        return False
+
+    def _cors_origin(self):
+        return ALLOWED_ORIGIN or (f'http://localhost:{PORT}' if is_loopback_host(HOST) else '')
+
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
+
+        if path.startswith('/api/') and not self._api_guard():
+            return
 
         if path == '/api/status':
             self.handle_api_status()
@@ -101,31 +142,36 @@ class WebDashboardHandler(BaseHTTPRequestHandler):
         if path in ['/', '']:
             path = '/index.html'
 
-        # Check in frontend/dist first, then web/, fallback to PROJECT_DIR
-        candidate_dist = os.path.normpath(os.path.join(PROJECT_DIR, 'frontend', 'dist', path.lstrip('/')))
-        candidate_web = os.path.normpath(os.path.join(PROJECT_DIR, 'web', path.lstrip('/')))
-        candidate_root = os.path.normpath(os.path.join(PROJECT_DIR, path.lstrip('/')))
+        # Check in frontend/dist first, then web/, fallback to PROJECT_DIR.
+        candidate_dist = safe_path(os.path.join(PROJECT_DIR, 'frontend', 'dist'), path)
+        candidate_web = safe_path(os.path.join(PROJECT_DIR, 'web'), path)
+        candidate_root = safe_path(PROJECT_DIR, path)
 
-        if os.path.exists(candidate_dist) and os.path.isfile(candidate_dist):
+        if candidate_dist and os.path.isfile(candidate_dist):
             filepath = candidate_dist
-        elif os.path.exists(candidate_web) and os.path.isfile(candidate_web):
+        elif candidate_web and os.path.isfile(candidate_web):
             filepath = candidate_web
-        elif os.path.exists(candidate_root) and os.path.isfile(candidate_root):
+        elif candidate_root and os.path.isfile(candidate_root):
             filepath = candidate_root
         else:
-            # Fallback to SPA index.html
-            spa_index = os.path.join(PROJECT_DIR, 'frontend', 'dist', 'index.html')
-            filepath = spa_index if os.path.exists(spa_index) else candidate_root
+            spa_index = safe_path(os.path.join(PROJECT_DIR, 'frontend', 'dist'), '/index.html')
+            filepath = spa_index if spa_index and os.path.isfile(spa_index) else candidate_root
 
-        if os.path.exists(filepath) and os.path.isfile(filepath):
+        if filepath and os.path.isfile(filepath):
             _, ext = os.path.splitext(filepath)
             mime = MIME_TYPES.get(ext.lower(), 'application/octet-stream')
-            with open(filepath, 'rb') as f:
-                content = f.read()
+            try:
+                with open(filepath, 'rb') as f:
+                    content = f.read()
+            except OSError as e:
+                self.send_error(500, f'Unable to read file: {e}')
+                return
             self.send_response(200)
             self.send_header('Content-Type', mime)
             self.send_header('Content-Length', str(len(content)))
-            self.send_header('Access-Control-Allow-Origin', '*')
+            origin = self._cors_origin()
+            if origin:
+                self.send_header('Access-Control-Allow-Origin', origin)
             self.end_headers()
             self.wfile.write(content)
         else:
@@ -139,6 +185,8 @@ class WebDashboardHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
+        if not self._api_guard():
+            return
         if path == '/api/start':
             self.handle_api_start()
         elif path == '/api/stop':
@@ -154,23 +202,31 @@ class WebDashboardHandler(BaseHTTPRequestHandler):
         global BOT_PROCESS
         is_running = BOT_PROCESS is not None and BOT_PROCESS.poll() is None
         pid = BOT_PROCESS.pid if is_running else None
-        
+
         if not is_running:
             try:
                 import psutil
+                target_main = os.path.realpath(os.path.join(PROJECT_DIR, 'main.py'))
+                target_weather = os.path.realpath(os.path.join(PROJECT_DIR, 'weather_ensemble_bot.py'))
                 for p in psutil.process_iter(['pid', 'cmdline']):
                     cmd = p.info.get('cmdline') or []
-                    if any(name in str(arg) for name in ['main.py', 'weather_ensemble_bot.py'] for arg in cmd):
-                        is_running = True
-                        pid = p.info.get('pid')
+                    for arg in cmd:
+                        if not isinstance(arg, str) or not arg:
+                            continue
+                        try:
+                            resolved = os.path.realpath(arg)
+                        except OSError:
+                            continue
+                        if resolved in (target_main, target_weather):
+                            is_running = True
+                            pid = p.info.get('pid')
+                            break
+                    if is_running:
                         break
             except Exception:
                 pass
 
-        data = {
-            'running': is_running,
-            'pid': pid
-        }
+        data = {'running': is_running, 'pid': pid}
         self.send_json_response(200, data)
 
     def handle_api_logs(self):
@@ -188,7 +244,7 @@ class WebDashboardHandler(BaseHTTPRequestHandler):
         try:
             positions = get_binance_futures_positions()
             usdt_bal = get_binance_futures_usdt_balance()
-            total_unrealized_pnl = sum(p['unrealizedProfit'] for p in positions)
+            total_unrealized_pnl = sum(float(p.get('unrealizedProfit', 0.0)) for p in positions)
             data = {
                 'status': 'success',
                 'balance': usdt_bal,
@@ -211,9 +267,12 @@ class WebDashboardHandler(BaseHTTPRequestHandler):
         query = urllib.parse.parse_qs(parsed.query)
         symbol = query.get('symbol', ['XRPUSDT'])[0]
         if OrderFlowEngine:
-            engine = OrderFlowEngine(symbol=symbol)
-            res = engine.analyze_order_flow()
-            self.send_json_response(200, {'status': 'success', 'data': res})
+            try:
+                engine = OrderFlowEngine(symbol=symbol)
+                res = engine.analyze_order_flow()
+                self.send_json_response(200, {'status': 'success', 'data': res})
+            except Exception as e:
+                self.send_json_response(500, {'status': 'error', 'message': str(e)})
         else:
             self.send_json_response(200, {'status': 'error', 'message': 'OrderFlowEngine unavailable'})
 
@@ -257,18 +316,33 @@ class WebDashboardHandler(BaseHTTPRequestHandler):
         data = get_divergence_status(symbol=symbol)
         self.send_json_response(200, data)
 
-    def handle_api_close_position(self):
-        content_length = int(self.headers.get('Content-Length', 0))
+    def _read_json_body(self):
+        try:
+            content_length = int(self.headers.get('Content-Length', 0))
+        except (TypeError, ValueError):
+            return None
+        if content_length < 0 or content_length > 1024 * 1024:
+            return None
         body = self.rfile.read(content_length).decode('utf-8') if content_length > 0 else '{}'
         try:
-            params = json.loads(body)
-        except Exception:
-            params = {}
+            data = json.loads(body)
+        except (TypeError, ValueError, UnicodeDecodeError):
+            return None
+        return data if isinstance(data, dict) else None
+
+    def handle_api_close_position(self):
+        params = self._read_json_body()
+        if params is None:
+            self.send_json_response(400, {'error': 'Invalid JSON body'})
+            return
         symbol = params.get('symbol')
-        if not symbol:
+        if not isinstance(symbol, str) or not symbol.strip():
             self.send_json_response(400, {'error': 'Missing symbol parameter'})
             return
-
+        symbol = symbol.strip().upper()
+        if len(symbol) > 30 or any(c not in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-' for c in symbol):
+            self.send_json_response(400, {'error': 'Invalid symbol parameter'})
+            return
         res = close_binance_futures_position(symbol)
         self.send_json_response(200, {'status': 'success', 'result': res, 'symbol': symbol})
 
@@ -277,13 +351,11 @@ class WebDashboardHandler(BaseHTTPRequestHandler):
         self.send_json_response(200, {'status': 'success', 'message': 'Close all executed', 'closed_positions': results})
 
     def handle_api_start(self):
-        global BOT_PROCESS
-        content_length = int(self.headers.get('Content-Length', 0))
-        body = self.rfile.read(content_length).decode('utf-8') if content_length > 0 else '{}'
-        try:
-            params = json.loads(body)
-        except Exception:
-            params = {}
+        global BOT_PROCESS, BOT_LOG_FILE
+        params = self._read_json_body()
+        if params is None:
+            self.send_json_response(400, {'status': 'error', 'message': 'Invalid JSON body'})
+            return
 
         mode = params.get('sizing_mode', 'margin')
         margin_pct = params.get('margin_pct', 0.03)
@@ -294,6 +366,12 @@ class WebDashboardHandler(BaseHTTPRequestHandler):
         directional_cap = params.get('directional_cap', 4)
 
         if BOT_PROCESS is None or BOT_PROCESS.poll() is not None:
+            if BOT_LOG_FILE is not None:
+                try:
+                    BOT_LOG_FILE.close()
+                except OSError:
+                    pass
+                BOT_LOG_FILE = None
             py_exec = get_python_executable()
             cmd = [
                 py_exec,
@@ -307,67 +385,85 @@ class WebDashboardHandler(BaseHTTPRequestHandler):
                 '--max-positions', str(max_positions),
                 '--directional-cap', str(directional_cap)
             ]
-            log_file = None
             try:
-                log_file = open(LOG_FILE_PATH, 'a', encoding='utf-8')
-                log_file.write(f"\n--- BOT STARTED: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')} ---\n")
-                log_file.flush()
-                BOT_PROCESS = subprocess.Popen(cmd, cwd=PROJECT_DIR, stdout=log_file, stderr=subprocess.STDOUT)
+                BOT_LOG_FILE = open(LOG_FILE_PATH, 'a', encoding='utf-8')
+                BOT_LOG_FILE.write(f"\n--- BOT STARTED: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')} ---\n")
+                BOT_LOG_FILE.flush()
+                BOT_PROCESS = subprocess.Popen(cmd, cwd=PROJECT_DIR, stdout=BOT_LOG_FILE, stderr=subprocess.STDOUT)
                 res = {'status': 'success', 'message': f'Bot started (PID: {BOT_PROCESS.pid})', 'running': True, 'pid': BOT_PROCESS.pid}
             except Exception as e:
-                res = {'status': 'error', 'message': f'Failed to start bot: {str(e)}', 'running': False}
-            finally:
-                if log_file:
+                if BOT_LOG_FILE is not None:
                     try:
-                        log_file.close()
-                    except Exception:
+                        BOT_LOG_FILE.close()
+                    except OSError:
                         pass
+                    BOT_LOG_FILE = None
+                BOT_PROCESS = None
+                res = {'status': 'error', 'message': f'Failed to start bot: {str(e)}', 'running': False}
         else:
             res = {'status': 'already_running', 'message': f'Bot is already running (PID: {BOT_PROCESS.pid})', 'running': True, 'pid': BOT_PROCESS.pid}
 
         self.send_json_response(200, res)
 
     def handle_api_stop(self):
-        global BOT_PROCESS
+        global BOT_PROCESS, BOT_LOG_FILE
         if BOT_PROCESS is not None and BOT_PROCESS.poll() is None:
             BOT_PROCESS.terminate()
             try:
                 BOT_PROCESS.wait(timeout=3)
             except subprocess.TimeoutExpired:
                 BOT_PROCESS.kill()
+                try:
+                    BOT_PROCESS.wait(timeout=2)
+                except subprocess.TimeoutExpired:
+                    pass
             BOT_PROCESS = None
             res = {'status': 'success', 'message': 'Bot stopped successfully', 'running': False}
         else:
             BOT_PROCESS = None
             res = {'status': 'not_running', 'message': 'Bot is not running', 'running': False}
-
+        if BOT_LOG_FILE is not None:
+            try:
+                BOT_LOG_FILE.flush()
+                BOT_LOG_FILE.close()
+            except OSError:
+                pass
+            BOT_LOG_FILE = None
         self.send_json_response(200, res)
 
     def send_json_response(self, code, data):
         try:
             self.send_response(code)
             self.send_header('Content-Type', 'application/json; charset=utf-8')
-            self.send_header('Access-Control-Allow-Origin', '*')
-            self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+            origin = self._cors_origin()
+            if origin:
+                self.send_header('Access-Control-Allow-Origin', origin)
+            self.send_header('Access-Control-Allow-Headers', 'Content-Type, X-Atlas-API-Key')
             self.end_headers()
             self.wfile.write(json.dumps(data).encode('utf-8'))
-        except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError, Exception):
+        except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError, OSError):
             pass
 
     def do_OPTIONS(self):
-        self.send_response(200)
-        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_response(204)
+        origin = self._cors_origin()
+        if origin:
+            self.send_header('Access-Control-Allow-Origin', origin)
         self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type, X-Atlas-API-Key')
         self.end_headers()
 
 if __name__ == '__main__':
     os.chdir(PROJECT_DIR)
-    server = ThreadingHTTPServer(('0.0.0.0', PORT), WebDashboardHandler)
-    print(f"=======================================================")
-    print(f" WEATHER-ENSEMBLE WEB DASHBOARD & BOT CONTROL SERVER ACTIVE")
-    print(f" URL: http://localhost:{PORT}")
-    print(f" API Endpoints: /api/start, /api/stop, /api/status, /api/logs, /api/positions, /api/close_position, /api/close_all")
-    print(f" Python Interpreter: {get_python_executable()}")
-    print(f"=======================================================")
+    if not is_loopback_host(HOST) and not API_TOKEN:
+        raise RuntimeError('ATLAS_API_TOKEN is required when ATLAS_BIND_HOST is not localhost')
+    server = ThreadingHTTPServer((HOST, PORT), WebDashboardHandler)
+    print('=======================================================')
+    print(' WEATHER-ENSEMBLE WEB DASHBOARD & BOT CONTROL SERVER ACTIVE')
+    print(f' URL: http://localhost:{PORT}')
+    print(f' Bind: {HOST}:{PORT}')
+    print(' API Endpoints: /api/start, /api/stop, /api/status, /api/logs, /api/positions, /api/close_position, /api/close_all')
+    print(f' Python Interpreter: {get_python_executable()}')
+    print('=======================================================')
     server.serve_forever()
+

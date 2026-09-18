@@ -21,6 +21,8 @@ data/
 
 # Logs & process files
 *.log
+*.log.*
+*.log*
 bot_output.log
 
 # IDE & OS files
@@ -28,3 +30,4 @@ bot_output.log
 .idea/
 .DS_Store
 Thumbs.db
+ 

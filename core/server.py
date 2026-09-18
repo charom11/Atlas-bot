@@ -16,8 +16,12 @@ import urllib.parse
 from datetime import datetime, timezone
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
+PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PROJECT_DIR_REAL = os.path.realpath(PROJECT_DIR)
+if PROJECT_DIR not in sys.path:
+    sys.path.insert(0, PROJECT_DIR)
+
 # Import Binance helper functions from main bot module
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 try:
     from main import (
         get_binance_futures_positions,
@@ -50,8 +54,6 @@ PORT = int(os.getenv('ATLAS_PORT', '8080'))
 HOST = os.getenv('ATLAS_BIND_HOST', '127.0.0.1').strip() or '127.0.0.1'
 API_TOKEN = os.getenv('ATLAS_API_TOKEN', '').strip()
 ALLOWED_ORIGIN = os.getenv('ATLAS_ALLOWED_ORIGIN', '').strip()
-PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
-PROJECT_DIR_REAL = os.path.realpath(PROJECT_DIR)
 LOG_FILE_PATH = os.path.join(PROJECT_DIR, 'bot_output.log')
 
 MIME_TYPES = {
@@ -383,7 +385,6 @@ class WebDashboardHandler(BaseHTTPRequestHandler):
                 '--max-positions', str(max_positions),
                 '--directional-cap', str(directional_cap)
             ]
-            log_file = None
             try:
                 BOT_LOG_FILE = open(LOG_FILE_PATH, 'a', encoding='utf-8')
                 BOT_LOG_FILE.write(f"\n--- BOT STARTED: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')} ---\n")
@@ -399,12 +400,6 @@ class WebDashboardHandler(BaseHTTPRequestHandler):
                     BOT_LOG_FILE = None
                 BOT_PROCESS = None
                 res = {'status': 'error', 'message': f'Failed to start bot: {str(e)}', 'running': False}
-            finally:
-                if log_file:
-                    try:
-                        log_file.close()
-                    except Exception:
-                        pass
         else:
             res = {'status': 'already_running', 'message': f'Bot is already running (PID: {BOT_PROCESS.pid})', 'running': True, 'pid': BOT_PROCESS.pid}
 
