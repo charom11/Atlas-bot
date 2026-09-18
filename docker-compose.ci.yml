@@ -1,0 +1,8 @@
+services:
+  atlas-bot-ci:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["python", "-m", "pytest", "-q"]
+    environment:
+      ATLAS_TEST_MODE: "1"
